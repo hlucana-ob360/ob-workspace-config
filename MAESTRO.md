@@ -12,8 +12,8 @@ _Actualizado: 2026-05-09_
 |---|---|---|---|---|---|
 | OB Sire Agent | `~/OB-Sire-Agent` | 3002 (prod) / 3001 (.env) | https://ob-sire-agent-923114664136.europe-west1.run.app | ✅ corriendo (LaunchAgent `com.ob360.sireodoo`) | https://github.com/hlucana-ob360/ob-sire-agent |
 | OB Finance Report | `~/OB-Finance-Report` | 3001 (prod) / 3000 (.env) | https://ob-finance-report-923114664136.europe-west1.run.app | ✅ corriendo (LaunchAgent `com.ob360.financereport`) | https://github.com/hlucana-ob360/ob-finance-report |
-| OB Prospection Agent | `~/OB-ProspectionAgent` | 3004 | https://ob-prospection-agent-923114664136.europe-west1.run.app | ✅ corriendo (LaunchAgent `com.ob360.prospectionagent`) | https://github.com/hlucana-ob360/ob-prospection-agent |
-| OB Executive Board | `~/OB-ExecutiveBoard` | 3005 | https://ob-executive-board-923114664136.europe-west1.run.app _(convención — verificar despliegue)_ | ✅ corriendo (LaunchAgent `com.ob360.executiveboard`) | https://github.com/hlucana-ob360/ob-executive-board |
+| OB Prospection Agent | `~/OB-ProspectionAgent` | 3004 | https://ob-prospection-agent-923114664136.europe-west1.run.app | ✅ corriendo · **v7.0** (Brief opcional + Discovery como fallback) | https://github.com/hlucana-ob360/ob-prospection-agent |
+| OB Executive Board | `~/OB-ExecutiveBoard` | 3005 | https://ob-executive-board-923114664136.europe-west1.run.app _(convención — verificar despliegue)_ | ✅ corriendo · **v7.2** (cache inteligente + trigger automático de inicio) | https://github.com/hlucana-ob360/ob-executive-board |
 | OB CRM Agent | `~/OB-CRM-Agent` | 3007 | https://ob-crm-agent-923114664136.europe-west1.run.app | ✅ corriendo (LaunchAgent `com.ob360.crmagent`) | https://github.com/hlucana-ob360/ob-crm-agent |
 | OB Atención Agent (legacy WhatsApp) | `~/OB-Atencion-Agent` | 3002 | https://ob-atencion-agent-923114664136.europe-west1.run.app | ⛔ no corriendo localmente | https://github.com/hlucana-ob360/ob-atencion-agent |
 | OB Atención Agent (Telegram v2) | `~/OB-Atencion-Agent-Telegram` | 3002 | _(no desplegado aún — servicio `ob-atencion-agent-telegram`)_ | ⛔ no corriendo localmente | https://github.com/hlucana-ob360/ob-atencion-agent-telegram |
@@ -86,12 +86,13 @@ _(solo nombres — los valores viven en cada `.env` local y en Cloud Run secrets
 _(carpeta vacía — sin `.env` ni código)_
 
 ## Pendientes activos
-- 🚨 URGENTE: Executive Board no ejecuta `leer_documentos_estrategicos()` al inicio — fix diseñado, pendiente ejecutar
+- ~~🚨 URGENTE: Executive Board no ejecuta `leer_documentos_estrategicos()` al inicio~~ ✅ **resuelto 2026-05-09** (Executive Board v7.2 — cache inteligente + trigger automático de inicio)
 - OB Content Agent: diseño pendiente
 - OB Treasury Agent: alcance pendiente
 - Comunicación inter-agencias: arquitectura pendiente
 - ~~GitHub remote: OB CRM Agent y todas las demás agencias sin remote configurado~~ ✅ **resuelto 2026-05-09** (los 7 repos privados creados en https://github.com/hlucana-ob360)
-- OB Prospection Agent: actualizar a estándar v7.0
+- ~~OB Prospection Agent: actualizar a estándar v7.0~~ ✅ **resuelto 2026-05-09** (Brief opcional + Discovery como fallback, revision `ob-prospection-agent-00006-kmd`)
+- Persistencia real del Brief en Cloud Run — el filesystem es efímero, hoy se pierde tras cold-start o redeploy. Usar Shared Drive (carpeta `Briefs` movida a Drive de equipo) o Firestore.
 - OB Builder Agent: carpeta `~/OB-BuilderAgent` vacía — falta scaffolding completo
 - OB Atención Agent: definir cuál versión queda canónica (legacy WhatsApp vs Telegram v2 — ambas reclaman puerto 3002)
 
