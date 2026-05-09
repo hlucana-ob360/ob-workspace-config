@@ -1,5 +1,5 @@
 # OB Big Agency — Libro Maestro
-_Actualizado: 2026-05-09_
+_Actualizado: 2026-05-10_
 
 ## Reglas de trabajo
 - Claude Chat = diseñar, pensar, crear ideas
@@ -15,6 +15,7 @@ _Actualizado: 2026-05-09_
 | OB Prospection Agent | `~/OB-ProspectionAgent` | 3004 | https://ob-prospection-agent-923114664136.europe-west1.run.app | ✅ corriendo · **v7.0** (Brief opcional + Discovery como fallback) | https://github.com/hlucana-ob360/ob-prospection-agent |
 | OB Executive Board | `~/OB-ExecutiveBoard` | 3005 | https://ob-executive-board-923114664136.europe-west1.run.app _(convención — verificar despliegue)_ | ✅ corriendo · **v7.2** (cache inteligente + trigger automático de inicio) | https://github.com/hlucana-ob360/ob-executive-board |
 | OB CRM Agent | `~/OB-CRM-Agent` | 3007 | https://ob-crm-agent-923114664136.europe-west1.run.app | ✅ corriendo (LaunchAgent `com.ob360.crmagent`) | https://github.com/hlucana-ob360/ob-crm-agent |
+| OB Content Agent | `~/OB-Big-Agency/ob-content-agent` | 3008 | _(pendiente de deploy)_ | ✅ construido · **v1.0** (CEO + 6 agentes subordinados, pipeline 7 fases, 4 endpoints orquestados) | https://github.com/hlucana-ob360/ob-content-agent |
 | OB Atención Agent (legacy WhatsApp) | `~/OB-Atencion-Agent` | 3002 | https://ob-atencion-agent-923114664136.europe-west1.run.app | ⛔ no corriendo localmente | https://github.com/hlucana-ob360/ob-atencion-agent |
 | OB Atención Agent (Telegram v2) | `~/OB-Atencion-Agent-Telegram` | 3002 | _(no desplegado aún — servicio `ob-atencion-agent-telegram`)_ | ⛔ no corriendo localmente | https://github.com/hlucana-ob360/ob-atencion-agent-telegram |
 | OB Builder Agent | `~/OB-BuilderAgent` | 3006 (referenciado) | _(solo local — `http://localhost:3006`)_ | ⛔ carpeta vacía / sin código | (sin git) |
@@ -29,6 +30,7 @@ cd ~/OB-Finance-Report && claude
 cd ~/OB-ProspectionAgent && claude
 cd ~/OB-ExecutiveBoard && claude
 cd ~/OB-CRM-Agent && claude
+cd ~/OB-Big-Agency/ob-content-agent && claude
 cd ~/OB-Atencion-Agent && claude
 cd ~/OB-Atencion-Agent-Telegram && claude
 cd ~/OB-BuilderAgent && claude
@@ -43,6 +45,7 @@ cd ~/OB-BuilderAgent && claude
 | 3005 | OB Executive Board |
 | 3006 | OB Builder Agent (reservado, sin código) |
 | 3007 | OB CRM Agent |
+| 3008 | OB Content Agent |
 
 ## Google Cloud
 - Proyecto GCP: **ob-360-agents** (project number `923114664136`)
@@ -51,12 +54,29 @@ cd ~/OB-BuilderAgent && claude
 - Service Account: `ob-finance-report@ob-360-agents.iam.gserviceaccount.com`
 
 ## Google Drive — IDs de carpetas
+
+### Workspace estratégico
 | Carpeta | ID |
 |---|---|
 | OB_Workspace_Estrategia (raíz) | `1aZbJ1Ctun1CSmtwSvaU95DFXJzu3KNT` |
 | Identidad | `1AaieXZ4U6YGVrMkNi3uTHzb9hrWAfy3z` |
 | Operativa | `1hz8z0-JcBZPiFCml7TQswp2y5jcPlBw5` |
 | Briefs | `1pR0y8MTe5c4XJKlidnaHz5tD4S6kSA5Q` |
+
+### OB Big Agency (raíz operativa de agencias) — renombrado de `Agencias/` el 2026-05-10
+| Carpeta | ID |
+|---|---|
+| OB_Big_Agency (raíz) | `1hAU9QIPJJN5GsMgjsJR10HTascdw-Kpo` |
+| OB_Attention_Agent _(typo `OB_Atention_Agent` corregido el 2026-05-10)_ | `1QrS5O_TcFje4_fpi_FF-vllc_PECuIAP` |
+| OB_Content_Agent (raíz) | `1F-oNE_nVLWGHZtqx4EzXqDMTscJeojas` |
+| OB_Content_Agent / Estrategias | `1NoSwhhlNNpxknYxwxnAhd1r_gTYH0EYG` |
+| OB_Content_Agent / Grillas | `1GFPWpZ7cPiA6jeNay2taEOW3kybT6yLJ` |
+| OB_Content_Agent / Piezas | `1Fs9gh80j5iap9j6zuz0JNRqRAtyNDuYt` |
+| OB_Content_Agent / Reportes | `1_yYRZsiAn5Xf5MjY4olHTsJqC6y4wHyZ` |
+
+> ⚠️ ID descontinuado el 2026-05-10: `1XiBwHzqxPWIK08YwDobpwblW3mZuPnMy` (carpeta antigua duplicada `OB_CRM_Agent`). No referenciar.
+
+> ⚠️ Las carpetas de OB_Content_Agent están actualmente en *My Drive* — la Service Account no tiene cuota propia y no puede escribir directamente. Mover a Shared Drive o habilitar OAuth delegation antes de producción. Mientras tanto la agencia degrada graceful a `sessions/` local.
 
 ## Variables de entorno por agencia
 _(solo nombres — los valores viven en cada `.env` local y en Cloud Run secrets)_
@@ -76,6 +96,15 @@ _(solo nombres — los valores viven en cada `.env` local y en Cloud Run secrets
 ### OB CRM Agent
 `ENTORNO`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `AI_PROVIDER`, `GOOGLE_SERVICE_ACCOUNT_KEY`, `GOOGLE_SHEET_ID_DEV`, `GOOGLE_SHEET_ID_PROD`, `GOOGLE_CALENDAR_ID`, `GMAIL_FROM`, `HUBSPOT_ACCESS_TOKEN`, `PORT`, `NODE_ENV`
 
+### OB Content Agent
+`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `AI_PROVIDER`, `GOOGLE_SERVICE_ACCOUNT_KEY`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CALENDAR_ID`, `DRIVE_IDENTIDAD_FOLDER_ID`, `DRIVE_OPERATIVA_FOLDER_ID`, `DRIVE_BRIEFS_FOLDER_ID`, `DRIVE_CONTENT_AGENT_FOLDER_ID`, `DRIVE_CONTENT_ESTRATEGIAS_ID`, `DRIVE_CONTENT_GRILLAS_ID`, `DRIVE_CONTENT_PIEZAS_ID`, `DRIVE_CONTENT_REPORTES_ID`, `HUBSPOT_ACCESS_TOKEN`, `URL_EXECUTIVE_BOARD`, `NOMBRE_AGENCIA`, `NOMBRE_EMPRESA`, `EMAIL_HANS`, `PORT`, `NODE_ENV`
+
+**Endpoints orquestados estándar** (modo Executive Board):
+- `POST /api/recibir-instruccion` — registra directriz del Board
+- `POST /api/proponer-plan` — devuelve plan de trabajo (objetivos, KPIs, calendario)
+- `POST /api/ejecutar-plan-aprobado` — arranca ejecución tras aprobación de Hans
+- `GET  /api/reporte-ejecucion` — KPIs, actividad reciente, estado actual
+
 ### OB Atención Agent (legacy)
 `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `ANTHROPIC_API_KEY`, `PORT`
 
@@ -87,7 +116,7 @@ _(carpeta vacía — sin `.env` ni código)_
 
 ## Pendientes activos
 - ~~🚨 URGENTE: Executive Board no ejecuta `leer_documentos_estrategicos()` al inicio~~ ✅ **resuelto 2026-05-09** (Executive Board v7.2 — cache inteligente + trigger automático de inicio)
-- OB Content Agent: diseño pendiente
+- ~~OB Content Agent: diseño pendiente~~ ✅ **resuelto 2026-05-10** (v1.0 construido, repo privado en https://github.com/hlucana-ob360/ob-content-agent — pendiente de deploy a Cloud Run)
 - OB Treasury Agent: alcance pendiente
 - Comunicación inter-agencias: arquitectura pendiente
 - ~~GitHub remote: OB CRM Agent y todas las demás agencias sin remote configurado~~ ✅ **resuelto 2026-05-09** (los 7 repos privados creados en https://github.com/hlucana-ob360)
