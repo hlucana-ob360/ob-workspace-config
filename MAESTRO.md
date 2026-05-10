@@ -1,5 +1,5 @@
 # OB Big Agency — Libro Maestro
-_Actualizado: 2026-05-10_
+_Actualizado: 2026-05-11_
 
 ## Reglas de trabajo
 - Claude Chat = diseñar, pensar, crear ideas
@@ -15,7 +15,7 @@ _Actualizado: 2026-05-10_
 | OB Prospection Agent | `~/OB-ProspectionAgent` | 3004 | https://ob-prospection-agent-923114664136.europe-west1.run.app | ✅ corriendo · **v7.0** (Brief opcional + Discovery como fallback) | https://github.com/hlucana-ob360/ob-prospection-agent |
 | OB Executive Board | `~/OB-ExecutiveBoard` | 3005 | https://ob-executive-board-923114664136.europe-west1.run.app _(convención — verificar despliegue)_ | ✅ corriendo · **v7.2** (cache inteligente + trigger automático de inicio) | https://github.com/hlucana-ob360/ob-executive-board |
 | OB CRM Agent | `~/OB-CRM-Agent` | 3007 | https://ob-crm-agent-923114664136.europe-west1.run.app | ✅ corriendo (LaunchAgent `com.ob360.crmagent`) | https://github.com/hlucana-ob360/ob-crm-agent |
-| OB Content Agent | `~/OB-Big-Agency/ob-content-agent` | 3008 | _(pendiente de deploy)_ | ✅ construido · **v1.0** (CEO + 6 agentes subordinados, pipeline 7 fases, 4 endpoints orquestados) | https://github.com/hlucana-ob360/ob-content-agent |
+| OB Content Agent | `~/OB-Big-Agency/ob-content-agent` | 3008 | https://ob-content-agent-923114664136.europe-west1.run.app | ✅ desplegado · **v1.0** (CEO + 6 agentes subordinados, pipeline 7 fases, 4 endpoints orquestados, persistencia ESTADO, modal+kanban+aprobación, PDF guion video real, Canva/Gamma stub pendiente de OAuth) | https://github.com/hlucana-ob360/ob-content-agent |
 | OB Atención Agent (legacy WhatsApp) | `~/OB-Atencion-Agent` | 3002 | https://ob-atencion-agent-923114664136.europe-west1.run.app | ⛔ no corriendo localmente | https://github.com/hlucana-ob360/ob-atencion-agent |
 | OB Atención Agent (Telegram v2) | `~/OB-Atencion-Agent-Telegram` | 3002 | _(no desplegado aún — servicio `ob-atencion-agent-telegram`)_ | ⛔ no corriendo localmente | https://github.com/hlucana-ob360/ob-atencion-agent-telegram |
 | OB Builder Agent | `~/OB-BuilderAgent` | 3006 (referenciado) | _(solo local — `http://localhost:3006`)_ | ⛔ carpeta vacía / sin código | (sin git) |
