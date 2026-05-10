@@ -1,5 +1,5 @@
 # OB Big Agency — Libro Maestro
-_Actualizado: 2026-05-11_
+_Actualizado: 2026-05-10_
 
 ## Reglas de trabajo
 - Claude Chat = diseñar, pensar, crear ideas
@@ -15,7 +15,7 @@ _Actualizado: 2026-05-11_
 | OB Prospection Agent | `~/OB-ProspectionAgent` | 3004 | https://ob-prospection-agent-923114664136.europe-west1.run.app | ✅ corriendo · **v7.0** (Brief opcional + Discovery como fallback) | https://github.com/hlucana-ob360/ob-prospection-agent |
 | OB Executive Board | `~/OB-ExecutiveBoard` | 3005 | https://ob-executive-board-923114664136.europe-west1.run.app _(convención — verificar despliegue)_ | ✅ corriendo · **v7.2** (cache inteligente + trigger automático de inicio) | https://github.com/hlucana-ob360/ob-executive-board |
 | OB CRM Agent | `~/OB-CRM-Agent` | 3007 | https://ob-crm-agent-923114664136.europe-west1.run.app | ✅ corriendo (LaunchAgent `com.ob360.crmagent`) | https://github.com/hlucana-ob360/ob-crm-agent |
-| OB Content Agent | `~/OB-Big-Agency/ob-content-agent` | 3008 | https://ob-content-agent-923114664136.europe-west1.run.app | ✅ desplegado · **v1.0** (CEO + 6 agentes subordinados, pipeline 7 fases, 4 endpoints orquestados, persistencia ESTADO, modal+kanban+aprobación, PDF guion video real, Canva/Gamma stub pendiente de OAuth) | https://github.com/hlucana-ob360/ob-content-agent |
+| OB Content Agent | `~/OB-Big-Agency/ob-content-agent` | 3008 | https://ob-content-agent-923114664136.europe-west1.run.app | ✅ **v1.0 CERRADO 2026-05-10** · pipeline E2E HTML → PDF (Montserrat base64 + `document.fonts.ready`) → GCS `ob-content-agent-pickup` (signed URLs V4) → Canva URL Import. Tokens Canva persistidos en Firestore (`canva_tokens/default`). 8 plantillas HTML branded en `templates/canva/`. Revisión `ob-content-agent-00012-slv`. | https://github.com/hlucana-ob360/ob-content-agent |
 | OB Atención Agent (legacy WhatsApp) | `~/OB-Atencion-Agent` | 3002 | https://ob-atencion-agent-923114664136.europe-west1.run.app | ⛔ no corriendo localmente | https://github.com/hlucana-ob360/ob-atencion-agent |
 | OB Atención Agent (Telegram v2) | `~/OB-Atencion-Agent-Telegram` | 3002 | _(no desplegado aún — servicio `ob-atencion-agent-telegram`)_ | ⛔ no corriendo localmente | https://github.com/hlucana-ob360/ob-atencion-agent-telegram |
 | OB Builder Agent | `~/OB-BuilderAgent` | 3006 (referenciado) | _(solo local — `http://localhost:3006`)_ | ⛔ carpeta vacía / sin código | (sin git) |
@@ -52,6 +52,33 @@ cd ~/OB-BuilderAgent && claude
 - Region: **europe-west1**
 - Registry: `europe-west1-docker.pkg.dev/ob-360-agents/cloud-run-source-deploy/`
 - Service Account: `ob-finance-report@ob-360-agents.iam.gserviceaccount.com`
+
+### Estrategia de costos Cloud Run — aplicada 2026-05-10
+- **Todas las agencias**: `min-instances=0` (scale-to-zero, cold-start aceptado en pre-prod)
+- **ob-atencion-agent**: `cpu-throttling=true` añadido (estaba en `always-allocated` por error → ~$48 USD/mes desperdiciados)
+- Ahorro estimado total: ~$48 USD/mes → <$2 USD/mes
+
+### Patrón ADC (Application Default Credentials) — aplicado 2026-05-10
+- **Regla:** NUNCA usar `ob-finance-report-key.json` ni cualquier otro JSON key en Cloud Run
+- Clientes GCP se instancian sin parámetros: `new Storage()`, `new BigQuery()`, `new google.auth.GoogleAuth({ scopes })` — **sin** `keyFilename` / `credentials` / `keyFile`
+- El runtime SA del servicio Cloud Run hereda automáticamente las credenciales
+- Para signed URLs V4: el runtime SA necesita `roles/iam.serviceAccountTokenCreator` self→self
+- En local, usar `gcloud auth application-default login` para que ADC funcione fuera de Cloud Run
+- **Pendiente DWD (Domain-Wide Delegation):** los siguientes archivos siguen usando JWT con keyFile porque hacen impersonation de usuario; marcados con `TODO(ADC)` en el código a la espera de validar el patrón DWD+ADC con el runtime SA:
+  - `OB-ExecutiveBoard/tools/gmail.js` (caso piloto)
+  - `OB-CRM-Agent/tools/calendar.js`
+  - `OB-CRM-Agent/tools/gmail.js`
+
+### Revisiones activas Cloud Run (2026-05-10)
+| Servicio | Revisión |
+|---|---|
+| ob-atencion-agent | `00014-xjv` |
+| ob-content-agent | `00012-slv` |
+| ob-crm-agent | `00005-kx7` |
+| ob-executive-board | `00023-htd` |
+| ob-finance-report | `00010-hsb` |
+| ob-prospection-agent | `00008-qfm` |
+| ob-sire-agent | `00004-gxg` |
 
 ## Google Drive — IDs de carpetas
 
@@ -116,9 +143,9 @@ _(carpeta vacía — sin `.env` ni código)_
 
 ## Pendientes activos
 - ~~🚨 URGENTE: Executive Board no ejecuta `leer_documentos_estrategicos()` al inicio~~ ✅ **resuelto 2026-05-09** (Executive Board v7.2 — cache inteligente + trigger automático de inicio)
-- ~~OB Content Agent: diseño pendiente~~ ✅ **resuelto 2026-05-10** (v1.0 construido, repo privado en https://github.com/hlucana-ob360/ob-content-agent — pendiente de deploy a Cloud Run)
+- ~~OB Content Agent: diseño pendiente~~ ✅ **CERRADO 2026-05-10** (v1.0 deployado a Cloud Run, revisión `ob-content-agent-00012-slv`)
 - OB Treasury Agent: alcance pendiente
-- Comunicación inter-agencias: arquitectura pendiente
+- 🎯 **Comunicación inter-agencias** — arquitectura master pendiente: bajo mando de OB Executive Board y Hans. Diseño y construcción no iniciados.
 - ~~GitHub remote: OB CRM Agent y todas las demás agencias sin remote configurado~~ ✅ **resuelto 2026-05-09** (los 7 repos privados creados en https://github.com/hlucana-ob360)
 - ~~OB Prospection Agent: actualizar a estándar v7.0~~ ✅ **resuelto 2026-05-09** (Brief opcional + Discovery como fallback, revision `ob-prospection-agent-00006-kmd`)
 - Persistencia real del Brief en Cloud Run — el filesystem es efímero, hoy se pierde tras cold-start o redeploy. Usar Shared Drive (carpeta `Briefs` movida a Drive de equipo) o Firestore.
