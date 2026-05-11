@@ -70,12 +70,12 @@ cd ~/OB-BuilderAgent && claude
   - ✅ ob-prospection-agent — ADC (compute SA), código ya estaba ADC-ready
   - ✅ ob-content-agent — ADC (compute SA), refactor con detección JSON/path/ADC
   - ✅ ob-finance-report — ADC (compute SA), código ya estaba ADC-ready; key file removida de imagen
-  - ✅ ob-sire-agent — ADC (compute SA) — auditado, código ya ADC-ready. Migración a Secret Manager + share de recursos pendiente.
+  - ✅ ob-sire-agent — ADC (compute SA), código ya ADC-ready. Migración a Secret Manager completada 2026-05-11.
   - ✅ ob-atencion-agent — limpieza de env vars (no usa Google APIs en código actual)
   - ⏸️ ob-executive-board — DWD para Gmail send (impersonation hlucana@ob-360.com) **sin migrar**. Sigue con keyFile + SA `ob-finance-report`. Migrar requiere habilitar DWD para la compute SA en Workspace Admin.
-- **Pendiente DWD (Domain-Wide Delegation):** archivos que siguen usando JWT con keyFile porque impersonan usuario humano:
-  - `OB-ExecutiveBoard/tools/gmail.js` (decisión: aplazar — necesita Workspace Admin DWD para compute SA)
-  - `OB-CRM-Agent/tools/calendar.js` y `tools/gmail.js` — con `TODO(ADC)`. **Estado actual**: rotación de SA key del 2026-05-11 rompe estos módulos si se invocan (usan la key `702fcd6b…` revocada). Si no son parte del flujo core de CRM, deprecar.
+- **Pendiente DWD (Domain-Wide Delegation):**
+  - `OB-ExecutiveBoard/tools/gmail.js` (decisión: aplazar — necesita Workspace Admin DWD para compute SA). Único punto de uso de JWT + DWD que queda en el ecosistema.
+  - ~~`OB-CRM-Agent/tools/calendar.js` y `tools/gmail.js`~~ — **deprecados 2026-05-11** (commit `c9ba267`). Stubs que lanzan Error explicativo. Decisión Hans: no son flujo core de CRM. Reactivación documentada en cada archivo. `tools/google-auth-key.js` queda orphan en el repo (no eliminado, sin callers).
 
 ### Secret Manager — migración 2026-05-11
 - **7 secrets en producción** (project `ob-360-agents`):
@@ -87,7 +87,7 @@ cd ~/OB-BuilderAgent && claude
   - ob-prospection-agent: ANTHROPIC, APOLLO, APIFY, HUBSPOT, GEMINI
   - ob-content-agent: ANTHROPIC, GEMINI, HUBSPOT, CANVA
   - ob-finance-report: ANTHROPIC
-  - ⏸️ ob-sire-agent — pendiente (ANTHROPIC todavía en plaintext, esperando OK explícito de Hans)
+  - ob-sire-agent: ANTHROPIC
   - ⏸️ ob-executive-board — pendiente (ANTHROPIC, GEMINI, HUBSPOT todavía en plaintext)
 - **Regla:** nuevos secretos NUNCA como env var plaintext en Cloud Run. `gcloud secrets create <NAME>` + IAM binding al compute SA + `gcloud run services update --update-secrets=<NAME>=<NAME>:latest`.
 
@@ -113,7 +113,7 @@ cd ~/OB-BuilderAgent && claude
 | ob-executive-board | `00023-htd` | sin cambios — DWD pendiente |
 | ob-finance-report | `00011-fz2` | ADC migration (key file removida de imagen) + ANTHROPIC via SM |
 | ob-prospection-agent | `00010-6rh` | ADC migration + 5 secrets via SM |
-| ob-sire-agent | `00004-gxg` | sin cambios — auditado, código ya ADC-ready. Migración SM + share Sheet/Drive pendiente OK Hans |
+| ob-sire-agent | `00005-mgf` | ADC migration (key file removida de imagen vía .dockerignore + .gcloudignore) + ANTHROPIC via SM. Sheet 1ZxTwsZRY8yp8E6wVL9PMbMT1nigj8ah7hMlEko_P13s upgraded a Editor para compute SA; folder 1fgnKaMNtKg37DwIX2rB-syKZKFkCLQZA compartido. |
 
 ## Google Drive — IDs de carpetas
 
@@ -143,8 +143,10 @@ cd ~/OB-BuilderAgent && claude
 ## Variables de entorno por agencia
 _(solo nombres — los valores viven en cada `.env` local y en Cloud Run secrets)_
 
-### OB Sire Agent
-`ANTHROPIC_API_KEY` _(plaintext — pendiente SM)_, `ODOO_PASSWORD`, `PORT`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `AI_PROVIDER`, `SHEETS_SPREADSHEET_ID`, `GOOGLE_DRIVE_FOLDER_ID`, `RUC`, `NOMBRE_EMPRESA`, `NODE_ENV`
+### OB Sire Agent (post 2026-05-11)
+**Via Secret Manager**: `ANTHROPIC_API_KEY`
+**Plaintext (config)**: `SHEETS_SPREADSHEET_ID`, `GOOGLE_DRIVE_FOLDER_ID`, `RUC`, `NOMBRE_EMPRESA`, `NODE_ENV`
+**Local-only (no en Cloud Run)**: `ODOO_PASSWORD`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `AI_PROVIDER`, `PORT`
 
 ### OB Finance Report (post 2026-05-11)
 **Via Secret Manager**: `ANTHROPIC_API_KEY`
@@ -189,14 +191,10 @@ _(carpeta vacía — sin `.env` ni código)_
 ## Pendientes activos
 - ~~🚨 URGENTE: Executive Board no ejecuta `leer_documentos_estrategicos()` al inicio~~ ✅ **resuelto 2026-05-09**
 - ~~OB Content Agent: diseño pendiente~~ ✅ **CERRADO 2026-05-10** (v1.0 deployado, revisión `00019-7pq` tras migración ADC del 2026-05-11)
-- ~~ADC migration cross-agency~~ ✅ **resuelto 2026-05-11** (5 servicios migrados; executive y sire pendientes)
-- 🚨 **ob-sire-agent — migración pendiente (2026-05-11)**:
-  - Sheet `1ZxTwsZRY8yp8E6wVL9PMbMT1nigj8ah7hMlEko_P13s` compartido como Viewer con compute SA pero sire **escribe** (`batchUpdate`, `values.update`, `values.append`) → upgrade a **Editor** necesario.
-  - Drive folder `1fgnKaMNtKg37DwIX2rB-syKZKFkCLQZA` (Sire) no compartido todavía con compute SA → compartir como Editor.
-  - `ANTHROPIC_API_KEY` plaintext → migrar a Secret Manager (versión ya cargada).
-  - Redeploy desde source con `.dockerignore` actualizado (excluye `*-key.json`) + `--update-secrets`.
-- ⏸️ **ob-executive-board — Gmail DWD pendiente**: requiere habilitar Domain-Wide Delegation para `923114664136-compute@developer.gserviceaccount.com` en Workspace Admin (admin.google.com → Security → API Controls → Domain-wide delegation) con scope `https://www.googleapis.com/auth/gmail.send`. Hasta entonces el servicio sigue con keyFile + SA `ob-finance-report`.
-- ⏸️ **CRM `tools/gmail.js` y `tools/calendar.js`** — siguen con JWT keyFile y la SA key revocada → módulos rotos si se invocan. Decidir: migrar (requiere DWD del compute SA, ver punto anterior) o deprecar si no son flujo core.
+- ~~ADC migration cross-agency~~ ✅ **resuelto 2026-05-11** (6 servicios migrados: crm, atencion, prospection, content, finance, sire; executive defered).
+- ~~ob-sire-agent migración~~ ✅ **completado 2026-05-11** (revisión `00005-mgf`).
+- ~~CRM `tools/gmail.js` y `tools/calendar.js`~~ ✅ **deprecados 2026-05-11** (commit `c9ba267`).
+- ⏸️ **ob-executive-board — Gmail DWD pendiente**: requiere habilitar Domain-Wide Delegation para `923114664136-compute@developer.gserviceaccount.com` en Workspace Admin (admin.google.com → Security → API Controls → Domain-wide delegation) con scope `https://www.googleapis.com/auth/gmail.send`. Hasta entonces el servicio sigue con keyFile + SA `ob-finance-report` (keys válidas remanentes: `ca7f4420…`, `97faaee2…`).
 - OB Treasury Agent: alcance pendiente
 - 🎯 **Comunicación inter-agencias** — arquitectura master pendiente
 - Persistencia real del Brief en Cloud Run — usar Shared Drive o Firestore
