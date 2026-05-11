@@ -51,8 +51,13 @@ cd ~/OB-BuilderAgent && claude
 - Proyecto GCP: **ob-360-agents** (project number `923114664136`)
 - Region: **europe-west1**
 - Registry: `europe-west1-docker.pkg.dev/ob-360-agents/cloud-run-source-deploy/`
-- **Runtime SA estándar (post 2026-05-11)**: `923114664136-compute@developer.gserviceaccount.com` (compute default). 5/7 agencias autentican vía ADC contra esta SA.
-- **SA legacy `ob-finance-report@ob-360-agents.iam.gserviceaccount.com`**: deprecada en uso pero NO eliminada — sigue siendo el sujeto de DWD en `ob-executive-board/tools/gmail.js`. Su key id `702fcd6b73a383182c2f1abcbd7e47161ef61a6b` fue rotada el 2026-05-11 (incidente de fuga, ver sección Secret Manager).
+- **Runtime SA estándar (post 2026-05-11)**: `923114664136-compute@developer.gserviceaccount.com` (compute default, Client ID `108210977057783116466`). **7/7 agencias** autentican vía ADC contra esta SA.
+- **IAM bindings de la compute SA (project-level + resource-level)**:
+  - `roles/datastore.user`, `roles/logging.logWriter`, `roles/logging.viewer`, `roles/storage.admin` (project)
+  - `roles/iam.serviceAccountTokenCreator` self→self (resource-level sobre sí misma — necesario para DWD vía `iamcredentials.signJwt`)
+  - `roles/secretmanager.secretAccessor` por cada uno de los 7 secrets (resource-level)
+- **DWD en Workspace Admin**: Client ID `108210977057783116466` autorizado con scope `https://www.googleapis.com/auth/gmail.send` — usado por `ob-executive-board/tools/gmail.js` para impersonar `hlucana@ob-360.com`.
+- **SA legacy `ob-finance-report@ob-360-agents.iam.gserviceaccount.com`**: deprecada. Ya no la usa ningún servicio en producción. Su key id `702fcd6b73a383182c2f1abcbd7e47161ef61a6b` fue rotada el 2026-05-11 (incidente de fuga). Mantenida por si hace falta rollback rápido — eliminable en próxima limpieza.
 
 ### Estrategia de costos Cloud Run — aplicada 2026-05-10
 - **Todas las agencias**: `min-instances=0` (scale-to-zero, cold-start aceptado en pre-prod)
@@ -72,10 +77,20 @@ cd ~/OB-BuilderAgent && claude
   - ✅ ob-finance-report — ADC (compute SA), código ya estaba ADC-ready; key file removida de imagen
   - ✅ ob-sire-agent — ADC (compute SA), código ya ADC-ready. Migración a Secret Manager completada 2026-05-11.
   - ✅ ob-atencion-agent — limpieza de env vars (no usa Google APIs en código actual)
-  - ⏸️ ob-executive-board — DWD para Gmail send (impersonation hlucana@ob-360.com) **sin migrar**. Sigue con keyFile + SA `ob-finance-report`. Migrar requiere habilitar DWD para la compute SA en Workspace Admin.
-- **Pendiente DWD (Domain-Wide Delegation):**
-  - `OB-ExecutiveBoard/tools/gmail.js` (decisión: aplazar — necesita Workspace Admin DWD para compute SA). Único punto de uso de JWT + DWD que queda en el ecosistema.
-  - ~~`OB-CRM-Agent/tools/calendar.js` y `tools/gmail.js`~~ — **deprecados 2026-05-11** (commit `c9ba267`). Stubs que lanzan Error explicativo. Decisión Hans: no son flujo core de CRM. Reactivación documentada en cada archivo. `tools/google-auth-key.js` queda orphan en el repo (no eliminado, sin callers).
+  - ✅ ob-executive-board — DWD migrado 2026-05-11 (commit `b2b3d69`). `tools/gmail.js` usa ADC + `iamcredentials.signJwt` + token exchange OAuth2. Verificado end-to-end (message_id `19e18a6707ae0864`).
+- **DWD (Domain-Wide Delegation):**
+  - ✅ `OB-ExecutiveBoard/tools/gmail.js` — migrado a ADC + signJwt 2026-05-11. **Único consumer activo de DWD en el ecosistema**.
+  - ~~`OB-CRM-Agent/tools/calendar.js` y `tools/gmail.js`~~ — deprecados 2026-05-11 (commit `c9ba267`). Stubs que lanzan Error explicativo. `tools/google-auth-key.js` queda orphan en el repo (sin callers).
+
+### Patrón DWD + ADC (referencia técnica)
+Para impersonar un usuario humano vía DWD sin keyFile (caso `ob-executive-board/tools/gmail.js`):
+
+1. `GoogleAuth({ scopes: ['cloud-platform'] })` → autentica vía metadata server.
+2. `iamcredentials.projects.serviceAccounts.signJwt({ name: 'projects/-/serviceAccounts/<SA_EMAIL>', requestBody: { payload: <JWT con sub=USUARIO_IMPERSONADO> } })` → Google firma con la private key de la SA, sin que el código la vea.
+3. POST a `https://oauth2.googleapis.com/token` con `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer` y `assertion=<JWT firmado>` → access_token impersonado.
+4. Llamar la API de destino con `Authorization: Bearer <access_token>`.
+
+**Requisitos**: la SA tiene `roles/iam.serviceAccountTokenCreator` self→self + el Client ID de la SA autorizado en Workspace Admin con los scopes que necesita.
 
 ### Secret Manager — migración 2026-05-11
 - **7 secrets en producción** (project `ob-360-agents`):
@@ -88,7 +103,7 @@ cd ~/OB-BuilderAgent && claude
   - ob-content-agent: ANTHROPIC, GEMINI, HUBSPOT, CANVA
   - ob-finance-report: ANTHROPIC
   - ob-sire-agent: ANTHROPIC
-  - ⏸️ ob-executive-board — pendiente (ANTHROPIC, GEMINI, HUBSPOT todavía en plaintext)
+  - ob-executive-board: ANTHROPIC, GEMINI, HUBSPOT
 - **Regla:** nuevos secretos NUNCA como env var plaintext en Cloud Run. `gcloud secrets create <NAME>` + IAM binding al compute SA + `gcloud run services update --update-secrets=<NAME>=<NAME>:latest`.
 
 ### Incidente 2026-05-11 — fuga de SA private key en respuestas HTTP de error
@@ -110,7 +125,7 @@ cd ~/OB-BuilderAgent && claude
 | ob-atencion-agent | `00016-9rx` | Limpieza env vars Google leftover + ANTHROPIC/TELEGRAM via Secret Manager |
 | ob-content-agent | `00019-7pq` | ADC migration (Drive/Calendar refactor) + 4 secrets via SM |
 | ob-crm-agent | `00008-hmn` | Fix fuga SA key (sheets.js + errorResponse sanitización) + delete contacto/campaña + ADC + 3 secrets via SM |
-| ob-executive-board | `00023-htd` | sin cambios — DWD pendiente |
+| ob-executive-board | `00024-k4n` | DWD migration (ADC + signJwt) + 3 secrets via SM + key file removida de imagen |
 | ob-finance-report | `00011-fz2` | ADC migration (key file removida de imagen) + ANTHROPIC via SM |
 | ob-prospection-agent | `00010-6rh` | ADC migration + 5 secrets via SM |
 | ob-sire-agent | `00005-mgf` | ADC migration (key file removida de imagen vía .dockerignore + .gcloudignore) + ANTHROPIC via SM. Sheet 1ZxTwsZRY8yp8E6wVL9PMbMT1nigj8ah7hMlEko_P13s upgraded a Editor para compute SA; folder 1fgnKaMNtKg37DwIX2rB-syKZKFkCLQZA compartido. |
@@ -158,8 +173,10 @@ _(solo nombres — los valores viven en cada `.env` local y en Cloud Run secrets
 **Plaintext (config)**: `GOOGLE_CALENDAR_ID`, `WHATSAPP_ESPANA`, `WHATSAPP_PERU`, `PORT`, `NODE_ENV`, `MAX_PROSPECTOS_SESION`, `MAX_CONTACTOS_BD_PROPIA`, `GEMINI_MODEL`, `AI_PROVIDER`
 **Removidos**: `GOOGLE_SERVICE_ACCOUNT_KEY` _(ahora ADC)_
 
-### OB Executive Board
-`ANTHROPIC_API_KEY`, `GOOGLE_SERVICE_ACCOUNT_KEY`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CALENDAR_ID`, `GMAIL_USER`, `HUBSPOT_ACCESS_TOKEN`, `URL_FINANCE_REPORT`, `URL_SIRE_AGENT`, `URL_ATENCION_AGENT`, `URL_PROSPECTION_AGENT`, `URL_BUILDER_AGENT`, `URL_CRM_AGENT`, `NODE_ENV`, `PORT`, `NOMBRE_EMPRESA`, `EMAIL_INFORME`, `DIA_INFORME`, `HORA_INFORME`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `AI_PROVIDER`, `DRIVE_ESTRATEGIA_FOLDER_ID`, `DRIVE_IDENTIDAD_FOLDER_ID`, `DRIVE_OPERATIVA_FOLDER_ID`, `DRIVE_BRIEFS_FOLDER_ID`
+### OB Executive Board (post 2026-05-11)
+**Via Secret Manager**: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `HUBSPOT_ACCESS_TOKEN`
+**Plaintext (config)**: `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CALENDAR_ID`, `GMAIL_USER`, `URL_FINANCE_REPORT`, `URL_SIRE_AGENT`, `URL_ATENCION_AGENT`, `URL_PROSPECTION_AGENT`, `URL_BUILDER_AGENT`, `URL_CRM_AGENT`, `NODE_ENV`, `NOMBRE_EMPRESA`, `EMAIL_INFORME`, `GEMINI_MODEL`, `AI_PROVIDER`, `DRIVE_ESTRATEGIA_FOLDER_ID`, `DRIVE_IDENTIDAD_FOLDER_ID`, `DRIVE_OPERATIVA_FOLDER_ID`, `DRIVE_BRIEFS_FOLDER_ID`
+**Removidos**: `GOOGLE_SERVICE_ACCOUNT_KEY` _(ahora ADC + DWD signJwt)_, `DIA_INFORME`/`HORA_INFORME` _(no se validan en el código actual — pendientes de hardening de idempotencia)_
 
 ### OB CRM Agent (post 2026-05-11)
 **Via Secret Manager**: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `HUBSPOT_ACCESS_TOKEN`
@@ -191,10 +208,14 @@ _(carpeta vacía — sin `.env` ni código)_
 ## Pendientes activos
 - ~~🚨 URGENTE: Executive Board no ejecuta `leer_documentos_estrategicos()` al inicio~~ ✅ **resuelto 2026-05-09**
 - ~~OB Content Agent: diseño pendiente~~ ✅ **CERRADO 2026-05-10** (v1.0 deployado, revisión `00019-7pq` tras migración ADC del 2026-05-11)
-- ~~ADC migration cross-agency~~ ✅ **resuelto 2026-05-11** (6 servicios migrados: crm, atencion, prospection, content, finance, sire; executive defered).
+- ~~ADC migration cross-agency~~ ✅ **resuelto 2026-05-11** (7/7 servicios).
 - ~~ob-sire-agent migración~~ ✅ **completado 2026-05-11** (revisión `00005-mgf`).
 - ~~CRM `tools/gmail.js` y `tools/calendar.js`~~ ✅ **deprecados 2026-05-11** (commit `c9ba267`).
-- ⏸️ **ob-executive-board — Gmail DWD pendiente**: requiere habilitar Domain-Wide Delegation para `923114664136-compute@developer.gserviceaccount.com` en Workspace Admin (admin.google.com → Security → API Controls → Domain-wide delegation) con scope `https://www.googleapis.com/auth/gmail.send`. Hasta entonces el servicio sigue con keyFile + SA `ob-finance-report` (keys válidas remanentes: `ca7f4420…`, `97faaee2…`).
+- ~~ob-executive-board Gmail DWD~~ ✅ **completado 2026-05-11** (revisión `00024-k4n`, commit `b2b3d69`). Patrón ADC + signJwt validado end-to-end.
+- ⏸️ **Hardening Executive Board informe (low-pri)**:
+  - Guard 409 si ya se envió un informe el mismo día (evitar duplicados como los del 2026-05-11 antes del fix del scheduler).
+  - Cálculo de número de semana ISO 8601 en código, no via LLM (hoy genera "Semana 19" / "Semana 20" / "Semana 20, 12 al 18 de mayo" inconsistentemente).
+  - Log persistente de envíos (Sheet "Envios_Informes" o Firestore) — auditoría sin depender del filesystem efímero.
 - OB Treasury Agent: alcance pendiente
 - 🎯 **Comunicación inter-agencias** — arquitectura master pendiente
 - Persistencia real del Brief en Cloud Run — usar Shared Drive o Firestore
